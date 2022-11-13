@@ -11,15 +11,12 @@ public class MultiLock: IMultiLock
     {
         private readonly MultiLock _multiLock;
         private readonly string[] _keys;
-        private readonly object _disposeLockObj;
-        private bool _isDisposed;
 
         public MultiLockKeysHolder(MultiLock multiLock, params string[] keys)
         {
             _multiLock = multiLock;
             _keys = keys;
-            _disposeLockObj = new object();
-            
+
             var sortedKeys = new string[keys.Length];
             Array.Copy(keys, sortedKeys, keys.Length);
             Array.Sort(sortedKeys);
@@ -33,15 +30,11 @@ public class MultiLock: IMultiLock
     
         public void Dispose()
         {
-            lock (_disposeLockObj)
-            {
-                if (_isDisposed) return;
-                _isDisposed = true;
-            }
             foreach (var key in _keys)
             {
                 var lockObj = _multiLock.GetLockObject(key);
-                Monitor.Exit(lockObj);
+                if (Monitor.IsEntered(lockObj))
+                    Monitor.Exit(lockObj);
             }
         }
     }
