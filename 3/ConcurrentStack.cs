@@ -47,7 +47,7 @@ public class ConcurrentStack<T>: IStack<T>
             var current = _current;
             var next = new StackNode(item, current, current.Count + 1);
             
-            if (Interlocked.CompareExchange(ref _current, next, next.Previous) == next.Previous)
+            if (Interlocked.CompareExchange(ref _current, next, current) == current)
                 break;
         }
     }
