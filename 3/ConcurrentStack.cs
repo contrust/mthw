@@ -42,6 +42,7 @@ public class ConcurrentStack<T>: IStack<T>
 
     public void Push(T item)
     {
+        var sw = new SpinWait();
         while (true)
         {
             var current = _current;
@@ -49,11 +50,13 @@ public class ConcurrentStack<T>: IStack<T>
             
             if (Interlocked.CompareExchange(ref _current, next, current) == current)
                 break;
+            sw.SpinOnce();
         }
     }
 
     public bool TryPop(out T item)
     {
+        var sw = new SpinWait();
         while (true)
         {
             var current = _current;
@@ -68,6 +71,7 @@ public class ConcurrentStack<T>: IStack<T>
                 item = current.Value;
                 return true;
             }
+            sw.SpinOnce();
         }
     }
 
