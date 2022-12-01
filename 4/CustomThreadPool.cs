@@ -22,7 +22,6 @@ public class CustomThreadPool: IThreadPool
             {
                 var workerQueue = new WorkStealingQueue<Action>();
                 _workersQueues[Thread.CurrentThread] = workerQueue;
-                var sw = new SpinWait();
                 while (true)
                 {
                     Action task = null;
@@ -43,14 +42,9 @@ public class CustomThreadPool: IThreadPool
                         }
                     }
 
-                    if (task == null)
-                    {
-                        sw.SpinOnce();
-                        continue;
-                    }
+                    if (task == null) continue;
                     task.Invoke();
                     Interlocked.Increment(ref _processedTasksCount);
-                    sw.Reset();
                 }
             });
             thread.Start();
