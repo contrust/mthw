@@ -7,6 +7,7 @@ public class CustomThreadPool: IThreadPool
     private readonly Queue<Action> _mainQueue;
     private readonly Thread _mainThread;
     private readonly ConcurrentDictionary<Thread, WorkStealingQueue<Action>> _workersQueues;
+    private readonly HashSet<Thread> _threadPoolThreads;
     private long _processedTasksCount;
 
     public CustomThreadPool()
@@ -14,6 +15,7 @@ public class CustomThreadPool: IThreadPool
         var threadCount = Environment.ProcessorCount;
         _mainThread = Thread.CurrentThread;
         _mainQueue = new Queue<Action>();
+        _threadPoolThreads = new HashSet<Thread>();
         _workersQueues = new ConcurrentDictionary<Thread, WorkStealingQueue<Action>>();
         _processedTasksCount = 0;
         for (var i = 0; i < threadCount; ++i)
@@ -47,23 +49,31 @@ public class CustomThreadPool: IThreadPool
                     Interlocked.Increment(ref _processedTasksCount);
                 }
             });
+            _threadPoolThreads.Add(thread);
             thread.Start();
         }
     }
 
     public void EnqueueAction(Action action)
     {
-        if (_mainThread == Thread.CurrentThread)
+        if (Thread.CurrentThread == _mainThread)
         {
-            lock (_mainQueue)
-            {
-                _mainQueue.Enqueue(action);
-                Monitor.Pulse(_mainQueue);
-            }
+            EnqueueActionToMainQueue(action);
         }
         else
         {
-            _workersQueues[Thread.CurrentThread].LocalPush(action);
+            _workersQueues.TryGetValue(Thread.CurrentThread, out var workStealingQueue);
+            if (workStealingQueue != null) workStealingQueue.LocalPush(action);
+            else EnqueueActionToMainQueue(action);
+        }
+    }
+
+    private void EnqueueActionToMainQueue(Action action)
+    {
+        lock (_mainQueue)
+        {
+            _mainQueue.Enqueue(action);
+            Monitor.Pulse(_mainQueue);
         }
     }
 
