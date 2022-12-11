@@ -28,7 +28,7 @@ public class ThreadLogParser: ILogParser
             threads[i] = new Thread(() =>
             {
                 var sw = new SpinWait();
-                while (isLoopRunning)
+                while (isLoopRunning || !queue.IsEmpty)
                 {
                     queue.TryDequeue(out var line);
                     if (line == null)
