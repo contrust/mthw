@@ -8,21 +8,21 @@ public class ParallelScanner : IPScanner
 {
     public Task Scan(IPAddress[] ipAddresses, int[] ports)
     {
+        const int portConnectionTimeout = 1000;
         return Task.Factory.StartNew(() =>
         {
             for (var i = 0; i < ipAddresses.Length; ++i)
             {
-                const int portConnectionTimeout = 1000;
                 var ii = i;
                 Task.Factory.StartNew(() =>
                 {
                     Console.WriteLine($"Pinging {ipAddresses[ii]}");
                     var ping = new Ping().SendPingAsync(ipAddresses[ii]);
-                    ping.ContinueWith(task =>
+                    ping.ContinueWith(pingReply =>
                         {
-                            task.Wait();
-                            Console.WriteLine($"Pinged {ipAddresses[ii]}: {task.Result.Status}");
-                            if (task.Result.Status != IPStatus.Success) return;
+                            pingReply.Wait();
+                            Console.WriteLine($"Pinged {ipAddresses[ii]}: {pingReply.Result.Status}");
+                            if (pingReply.Result.Status != IPStatus.Success) return;
                             for (var j = 0; j < ports.Length; ++j)
                             {
                                 var jj = j;
@@ -31,11 +31,11 @@ public class ParallelScanner : IPScanner
                                     Console.WriteLine($"Checking {ipAddresses[ii]}:{ports[jj]}");
                                     var tcpConnection = new TcpClient()
                                         .ConnectAsync(ipAddresses[ii], ports[jj], portConnectionTimeout);
-                                    tcpConnection.ContinueWith(t =>
+                                    tcpConnection.ContinueWith(portStatus =>
                                         {
-                                            t.Wait();
+                                            portStatus.Wait();
                                             Console.WriteLine(
-                                                $"Checked {ipAddresses[ii]}:{ports[jj]} - {t.Result}");
+                                                $"Checked {ipAddresses[ii]}:{ports[jj]} - {portStatus.Result}");
                                         });
                                 }, TaskCreationOptions.AttachedToParent);
                             }
