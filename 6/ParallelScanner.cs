@@ -18,9 +18,9 @@ public class ParallelScanner : IPScanner
                 {
                     Console.WriteLine($"Pinging {ipAddresses[ii]}");
                     var ping = new Ping().SendPingAsync(ipAddresses[ii]);
+                    ping.Wait();
                     ping.ContinueWith(pingReply =>
                         {
-                            pingReply.Wait();
                             Console.WriteLine($"Pinged {ipAddresses[ii]}: {pingReply.Result.Status}");
                             if (pingReply.Result.Status != IPStatus.Success) return;
                             for (var j = 0; j < ports.Length; ++j)
@@ -31,9 +31,9 @@ public class ParallelScanner : IPScanner
                                     Console.WriteLine($"Checking {ipAddresses[ii]}:{ports[jj]}");
                                     var tcpConnection = new TcpClient()
                                         .ConnectAsync(ipAddresses[ii], ports[jj], portConnectionTimeout);
+                                    tcpConnection.Wait();
                                     tcpConnection.ContinueWith(portStatus =>
                                         {
-                                            portStatus.Wait();
                                             Console.WriteLine(
                                                 $"Checked {ipAddresses[ii]}:{ports[jj]} - {portStatus.Result}");
                                         });
