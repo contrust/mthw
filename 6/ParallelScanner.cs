@@ -8,35 +8,41 @@ public class ParallelScanner : IPScanner
 {
     public Task Scan(IPAddress[] ipAddresses, int[] ports)
     {
-        const int portConnectionTimeout = 1000;
-        var ipScans = new Task[ipAddresses.Length];
-        for (var i = 0; i < ipAddresses.Length; ++i)
+        return Task.Factory.StartNew(() =>
         {
-            var ii = i;
-            ipScans[i] = Task.Run(async () =>
+            for (var i = 0; i < ipAddresses.Length; ++i)
             {
-                Console.WriteLine($"Pinging {ipAddresses[ii]}");
-                var ping = await new Ping().SendPingAsync(ipAddresses[ii]);
-                Console.WriteLine($"Pinged {ipAddresses[ii]}: {ping.Status}");
-                if (ping.Status != IPStatus.Success) return;;
-                var portConnections = new Task[ports.Length];
-                for (var j = 0; j < ports.Length; ++j)
+                const int portConnectionTimeout = 1000;
+                var ii = i;
+                Task.Factory.StartNew(() =>
                 {
-                    var jj = j;
-                    portConnections[j] = Task.Run(async () =>
-                    {
-                        using var tcpClient = new TcpClient();
-                        Console.WriteLine($"Checking {ipAddresses[ii]}:{ports[jj]}");
-                        var portStatus = await tcpClient
-                            .ConnectAsync(ipAddresses[ii], ports[jj], portConnectionTimeout);
-                        Console.WriteLine(
-                            $"Checked {ipAddresses[ii]}:{ports[jj]} - {portStatus}");
-                    });
-                }
-
-                await Task.WhenAll(portConnections);
-            });
-        }
-        return Task.WhenAll(ipScans);
+                    Console.WriteLine($"Pinging {ipAddresses[ii]}");
+                    var ping = new Ping().SendPingAsync(ipAddresses[ii]);
+                    ping.ContinueWith(task =>
+                        {
+                            task.Wait();
+                            Console.WriteLine($"Pinged {ipAddresses[ii]}: {task.Result.Status}");
+                            if (task.Result.Status != IPStatus.Success) return;
+                            for (var j = 0; j < ports.Length; ++j)
+                            {
+                                var jj = j;
+                                Task.Factory.StartNew(() =>
+                                {
+                                    Console.WriteLine($"Checking {ipAddresses[ii]}:{ports[jj]}");
+                                    var tcpConnection = new TcpClient()
+                                        .ConnectAsync(ipAddresses[ii], ports[jj], portConnectionTimeout);
+                                    tcpConnection.ContinueWith(t =>
+                                        {
+                                            t.Wait();
+                                            Console.WriteLine(
+                                                $"Checked {ipAddresses[ii]}:{ports[jj]} - {t.Result}");
+                                        });
+                                }, TaskCreationOptions.AttachedToParent);
+                            }
+                        },
+                        TaskContinuationOptions.AttachedToParent);
+                }, TaskCreationOptions.AttachedToParent);
+            }
+        });
     }
 }
