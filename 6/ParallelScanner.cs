@@ -6,7 +6,7 @@ namespace TPL;
 
 public class ParallelScanner : IPScanner
 {
-    public Task Scan(IPAddress[] ipAddresses, int[] ports)
+    public Task ScanAsync(IPAddress[] ipAddresses, int[] ports)
     {
         const int portConnectionTimeout = 1000;
         return Task.Factory.StartNew(() =>
@@ -18,7 +18,6 @@ public class ParallelScanner : IPScanner
                 {
                     Console.WriteLine($"Pinging {ipAddresses[ii]}");
                     var ping = new Ping().SendPingAsync(ipAddresses[ii]);
-                    ping.Wait();
                     ping.ContinueWith(pingReply =>
                         {
                             Console.WriteLine($"Pinged {ipAddresses[ii]}: {pingReply.Result.Status}");
@@ -31,12 +30,11 @@ public class ParallelScanner : IPScanner
                                     Console.WriteLine($"Checking {ipAddresses[ii]}:{ports[jj]}");
                                     var tcpConnection = new TcpClient()
                                         .ConnectAsync(ipAddresses[ii], ports[jj], portConnectionTimeout);
-                                    tcpConnection.Wait();
                                     tcpConnection.ContinueWith(portStatus =>
-                                        {
-                                            Console.WriteLine(
-                                                $"Checked {ipAddresses[ii]}:{ports[jj]} - {portStatus.Result}");
-                                        });
+                                    {
+                                        Console.WriteLine(
+                                            $"Checked {ipAddresses[ii]}:{ports[jj]} - {portStatus.Result}");
+                                    }, TaskContinuationOptions.AttachedToParent);
                                 }, TaskCreationOptions.AttachedToParent);
                             }
                         },
