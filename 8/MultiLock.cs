@@ -23,8 +23,11 @@ public class MultiLock: IAsyncMultiLock
             Array.Sort(sortedKeys);
             
             _keys = sortedKeys;
+        }
 
-            foreach (var key in sortedKeys)
+        public async Task Acquire()
+        {
+            foreach (var key in _keys)
             {
                 _multiLock._semaphores.TryGetValue(key, out var semaphore);
                 if (semaphore == null)
@@ -33,7 +36,7 @@ public class MultiLock: IAsyncMultiLock
                     _multiLock._semaphores.TryAdd(key, newSemaphore);
                     _multiLock._semaphores.TryGetValue(key, out semaphore);
                 }
-                semaphore.Wait();
+                await semaphore.WaitAsync();
             }
         }
     
@@ -54,8 +57,10 @@ public class MultiLock: IAsyncMultiLock
         _semaphores = new ConcurrentDictionary<string, SemaphoreSlim>();
     }
 
-    public Task<IDisposable> AcquireLockAsync(params string[] keys)
+    public async Task<IDisposable> AcquireLockAsync(params string[] keys)
     {
-        return Task.Factory.StartNew<IDisposable>(() => new MultiLockKeysHolder(this, keys));
+        var multiLockKeysHolder = new MultiLockKeysHolder(this, keys);
+        await multiLockKeysHolder.Acquire();
+        return multiLockKeysHolder;
     }
 }
