@@ -17,16 +17,12 @@ public class MultiLock: IAsyncMultiLock
         public MultiLockKeysHolder(MultiLock multiLock, params string[] keys)
         {
             _multiLock = multiLock;
-
-            var sortedKeys = new string[keys.Length];
-            Array.Copy(keys, sortedKeys, keys.Length);
-            Array.Sort(sortedKeys);
-            
-            _keys = sortedKeys;
+            _keys = keys;
         }
 
         public async Task Acquire()
         {
+            Array.Sort(_keys);
             foreach (var key in _keys)
             {
                 _multiLock._semaphores.TryGetValue(key, out var semaphore);
